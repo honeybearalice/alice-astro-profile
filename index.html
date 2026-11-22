@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>占星师 Alice</title>
+<meta name="description" content="占星师 Alice — 星图、故事与光。">
+<style>
+:root{
+  --ink:#0d1b2a;
+  --ink-2:#1b2a3a;
+  --paper:#f7f5f0;
+  --paper-2:#eeeae1;
+  --line:rgba(13,27,42,.14);
+  --line-2:rgba(13,27,42,.08);
+  --gold:#b98a3e;
+  --gold-soft:#d9b673;
+  --muted:#6b7684;
+  --serif:"Songti SC","Source Han Serif SC","Noto Serif SC","STSong",Georgia,serif;
+  --sans:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,sans-serif;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--sans);line-height:1.75;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+/* 纸张颗粒 */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:2;opacity:.5;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.16'/></svg>");
+  mix-blend-mode:multiply;
+}
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.wrap{position:relative;z-index:3;}
+
+/* ---------- 顶栏 ---------- */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px clamp(20px,5vw,64px);
+  mix-blend-mode:normal;
+  background:linear-gradient(to bottom,rgba(247,245,240,.92),rgba(247,245,240,0));
+  backdrop-filter:blur(6px);
+}
+.brand{font-family:var(--serif);font-size:15px;letter-spacing:.34em;color:var(--ink);text-decoration:none;}
+.brand span{color:var(--gold);}
+nav{display:flex;gap:clamp(14px,2.4vw,34px);}
+nav a{
+  font-size:12.5px;letter-spacing:.18em;color:var(--muted);text-decoration:none;
+  padding:6px 0;position:relative;transition:color .35s var(--ease);
+}
+nav a::after{
+  content:"";position:absolute;left:0;right:100%;bottom:0;height:1px;
+  background:var(--gold);transition:right .45s var(--ease);
+}
+nav a:hover{color:var(--ink);}
+nav a:hover::after{right:0;}
+
+/* ---------- Hero ---------- */
+.hero{
+  min-height:100svh;display:grid;place-items:center;
+  padding:120px clamp(20px,5vw,64px) 60px;position:relative;
+}
+.hero-inner{
+  display:grid;grid-template-columns:1.02fr .98fr;gap:clamp(24px,5vw,80px);
+  align-items:center;max-width:1180px;width:100%;
+}
+.eyebrow{
+  font-size:11.5px;letter-spacing:.42em;color:var(--gold);text-transform:uppercase;
+  display:flex;align-items:center;gap:14px;margin-bottom:26px;
+}
+.eyebrow::before{content:"";width:44px;height:1px;background:var(--gold);display:block;}
+h1{
+  font-family:var(--serif);font-weight:400;
+  font-size:clamp(46px,7.6vw,104px);line-height:1.02;letter-spacing:-.02em;
+  margin:0 0 8px;
+}
+h1 em{font-style:italic;color:var(--gold);}
+.sub-en{
+  font-family:var(--serif);font-style:italic;font-size:clamp(13px,1.5vw,17px);
+  color:var(--muted);letter-spacing:.06em;margin-bottom:28px;
+}
+.lede{
+  font-size:clamp(14.5px,1.45vw,17px);color:var(--ink-2);max-width:34ch;
+  line-height:1.95;
+}
+.lede b{font-weight:600;color:var(--ink);}
+.meta{
+  margin-top:36px;display:flex;flex-wrap:wrap;gap:10px 26px;
+  font-size:12px;letter-spacing:.13em;color:var(--muted);
+}
+.meta i{font-style:normal;color:var(--gold);}
+.scroll-hint{
+  position:absolute;bottom:30px;left:50%;transform:translateX(-50%);
+  font-size:11px;letter-spacing:.3em;color:var(--muted);text-align:center;
+}
+.scroll-hint::after{
+  content:"";display:block;width:1px;height:38px;margin:10px auto 0;
+  background:linear-gradient(to bottom,var(--gold),transparent);
+  animation:drip 2.6s var(--ease) infinite;
+}
+@keyframes drip{0%{transform:scaleY(0);transform-origin:top;}45%{transform:scaleY(1);transform-origin:top;}55%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+
+/* ---------- 星盘 ---------- */
+.chart-stage{position:relative;display:grid;place-items:center;aspect-ratio:1/1;max-width:min(520px,64vh);width:100%;margin-inline:auto;transition:transform .5s var(--ease);}
+.chart-stage svg{width:100%;height:100%;overflow:visible;}
+.chart-stage .halo{
+  position:absolute;inset:12%;border-radius:50%;
+  background:radial-gradient(circle,rgba(217,182,115,.30),rgba(217,182,115,0) 68%);
+  filter:blur(18px);transition:opacity .6s var(--ease);opacity:.75;
+}
+.ring{fill:none;stroke:var(--line);}
+.ring-major{stroke:rgba(13,27,42,.28);}
+.tick{stroke:rgba(13,27,42,.22);}
+.tick-major{stroke:var(--ink);}
+.house-line{stroke:var(--line-2);}
+.zodiac{font-family:var(--serif);font-size:13px;fill:var(--muted);text-anchor:middle;letter-spacing:.04em;}
+.planet{cursor:pointer;}
+.planet .core{transition:r .45s var(--ease),filter .45s var(--ease);}
+.planet .aura{opacity:0;transition:opacity .45s var(--ease);}
+.planet:hover .aura,.planet.is-active .aura{opacity:1;}
+.planet:hover .core,.planet.is-active .core{filter:drop-shadow(0 0 10px rgba(185,138,62,.85));}
+.aspect{stroke:var(--gold);stroke-width:.7;opacity:0;transition:opacity .6s var(--ease);}
+.aspect.on{opacity:.42;}
+.aspect.on.dim{opacity:.14;}
+.chart-center-text{font-family:var(--serif);font-size:11px;fill:var(--muted);text-anchor:middle;letter-spacing:.22em;}
+
+/* 悬停卡 */
+.astro-card{
+  position:fixed;z-index:60;pointer-events:none;width:min(300px,80vw);
+  padding:18px 20px;border-radius:2px;
+  background:rgba(13,27,42,.94);color:#f3f0e9;
+  box-shadow:0 22px 60px -22px rgba(13,27,42,.7);
+  opacity:0;transform:translateY(8px) scale(.98);transition:opacity .28s var(--ease),transform .28s var(--ease);
+  backdrop-filter:blur(4px);
+}
+.astro-card.show{opacity:1!important;transform:translateY(0) scale(1);}
+.astro-card .k{font-family:var(--serif);font-size:19px;letter-spacing:.06em;color:var(--gold-soft);margin-bottom:2px;}
+.astro-card .len{font-size:10.5px;letter-spacing:.26em;color:rgba(243,240,233,.42);margin-bottom:12px;}
+.astro-card p{margin:0;font-size:13px;line-height:1.85;color:rgba(243,240,233,.9);}
+.astro-card .rule{height:1px;background:linear-gradient(to right,rgba(217,182,115,.55),transparent);margin:12px 0 11px;}
+.astro-card .word{font-family:var(--serif);font-style:italic;font-size:12.5px;color:rgba(243,240,233,.62);}
+
+/* ---------- 通用 section ---------- */
+section{padding:clamp(80px,12vh,150px) clamp(20px,5vw,64px);position:relative;}
+.inner{max-width:1080px;margin:0 auto;}
+.sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:clamp(40px,6vw,72px);}
+.sec-num{font-family:var(--serif);font-size:12px;color:var(--gold);letter-spacing:.22em;}
+.sec-head h2{font-family:var(--serif);font-weight:400;font-size:clamp(26px,3.4vw,42px);margin:0;letter-spacing:-.01em;}
+.sec-head .en{font-family:var(--serif);font-style:italic;font-size:12.5px;color:var(--muted);margin-left:auto;}
+
+/* 星点网格 */
+.constellations{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1px;background:var(--line-2);border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);
+}
+@media (max-width:640px){.constellations{grid-template-columns:1fr;}}
+.star-cell{
+  background:var(--paper);padding:clamp(24px,3vw,36px);cursor:pointer;position:relative;
+  transition:background .5s var(--ease);text-align:left;border:0;font:inherit;color:inherit;
+  display:block;width:100%;
+}
+.star-cell:hover{background:#fffefa;}
+.star-cell .dot{
+  width:7px;height:7px;border-radius:50%;background:var(--ink);display:block;margin-bottom:18px;
+  transition:background .4s var(--ease),box-shadow .4s var(--ease),transform .4s var(--ease);
+}
+.star-cell:hover .dot{background:var(--gold);box-shadow:0 0 0 5px rgba(185,138,62,.16);transform:scale(1.25);}
+.star-cell .planet-name{font-family:var(--serif);font-size:19px;margin-bottom:4px;}
+.star-cell .planet-key{font-size:10.5px;letter-spacing:.26em;color:var(--gold);margin-bottom:14px;}
+.star-cell p{margin:0;font-size:13.2px;line-height:1.9;color:var(--ink-2);}
+.star-cell .more{
+  display:inline-block;margin-top:16px;font-size:11px;letter-spacing:.2em;color:var(--muted);
+  transition:color .4s var(--ease),transform .4s var(--ease);
+}
+.star-cell:hover .more{color:var(--gold);transform:translateX(4px);}
+
+.star-cell.is-signature{
+  background:var(--ink);color:#f3f0e9;cursor:default;display:flex;flex-direction:column;justify-content:space-between;
+}
+.star-cell.is-signature:hover{background:var(--ink);}
+.star-cell.is-signature .dot{background:var(--gold-soft);box-shadow:0 0 0 5px rgba(217,182,115,.16);}
+.star-cell.is-signature .planet-name{color:#f3f0e9;font-style:italic;}
+.star-cell.is-signature .planet-key{color:var(--gold-soft);}
+.star-cell.is-signature p{color:rgba(243,240,233,.66);}
+.star-cell.is-signature .more{color:rgba(243,240,233,.45);}
+.star-cell.is-signature:hover .more{color:var(--gold-soft);transform:none;}
+.signature-mark{font-family:var(--serif);font-style:italic;font-size:12.5px;color:rgba(243,240,233,.5);letter-spacing:.1em;margin-top:18px;}
+
+/* 长文详情区 */
+.essay{
+  margin-top:1px;background:var(--paper-2);
+  overflow:hidden;max-height:0;transition:max-height .7s var(--ease),opacity .5s var(--ease);opacity:0;
+  grid-column:1/-1;
+}
+.essay.open{max-height:3000px;opacity:1;}
+.essay-inner{padding:clamp(28px,4vw,52px);max-width:760px;}
+.essay h3{font-family:var(--serif);font-weight:400;font-size:23px;margin:0 0 6px;}
+.essay .tag{font-size:10.5px;letter-spacing:.26em;color:var(--gold);margin-bottom:22px;}
+.essay p{font-size:14.2px;line-height:2.05;color:var(--ink-2);margin:0 0 16px;}
+.essay p:last-child{margin-bottom:0;}
+.essay .close{
+  margin-top:26px;background:none;border:1px solid var(--line);color:var(--muted);
+  padding:9px 20px;font-size:11px;letter-spacing:.2em;cursor:pointer;font-family:inherit;
+  transition:all .35s var(--ease);
+}
+.essay .close:hover{border-color:var(--gold);color:var(--gold);}
+
+/* ---------- 追光沐行 ---------- */
+.work{
+  background:var(--ink);color:#eae6dc;position:relative;z-index:3;overflow:hidden;
+}
+.work::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background:radial-gradient(circle at 78% 18%,rgba(217,182,115,.16),transparent 46%),
+             radial-gradient(circle at 12% 84%,rgba(217,182,115,.10),transparent 40%);
+}
+.work .inner{position:relative;z-index:2;}
+.work .sec-num{color:var(--gold-soft);}
+.work .sec-head h2{color:#f3f0e9;}
+.work .sec-head .en{color:rgba(234,230,220,.42);}
+.work .lede-big{
+  font-family:var(--serif);font-size:clamp(20px,2.6vw,31px);line-height:1.72;max-width:26ch;
+  margin:0 0 clamp(40px,6vw,68px);color:#f3f0e9;font-weight:400;
+}
+.work .lede-big em{font-style:italic;color:var(--gold-soft);}
+.capabilities{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:clamp(22px,3.4vw,40px);}
+.cap{border-top:1px solid rgba(234,230,220,.18);padding-top:18px;}
+.cap .n{font-family:var(--serif);font-size:11px;letter-spacing:.24em;color:var(--gold-soft);margin-bottom:12px;}
+.cap h4{font-size:15px;font-weight:500;margin:0 0 8px;letter-spacing:.02em;}
+.cap p{margin:0;font-size:12.8px;line-height:1.9;color:rgba(234,230,220,.62);}
+.work-note{
+  margin-top:clamp(44px,6vw,72px);padding-top:22px;border-top:1px solid rgba(234,230,220,.18);
+  font-size:11.5px;letter-spacing:.1em;color:rgba(234,230,220,.55);
+}
+
+/* ---------- 结语 ---------- */
+.closing{text-align:center;padding-block:clamp(100px,15vh,190px);}
+.closing .quote{
+  font-family:var(--serif);font-size:clamp(21px,3.2vw,38px);line-height:1.65;
+  max-width:22ch;margin:0 auto 30px;letter-spacing:-.01em;font-weight:400;
+}
+.closing .quote em{font-style:italic;color:var(--gold);}
+.closing .sign{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--muted);letter-spacing:.16em;}
+footer{
+  border-top:1px solid var(--line-2);padding:26px clamp(20px,5vw,64px);
+  display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;
+  font-size:11px;letter-spacing:.16em;color:var(--muted);position:relative;z-index:3;
+}
+footer .r{display:flex;gap:18px;}
+footer a{color:var(--muted);text-decoration:none;transition:color .35s var(--ease);}
+footer a:hover{color:var(--gold);}
+
+/* ---------- 进场 ---------- */
+.reveal{opacity:0;transform:translateY(26px);transition:opacity 1s var(--ease),transform 1s var(--ease);}
+.reveal.in{opacity:1;transform:none;}
+
+/* ---------- 光标 ---------- */
+.cursor-dot{
+  position:fixed;width:7px;height:7px;border-radius:50%;background:var(--gold);
+  pointer-events:none;z-index:99;transform:translate(-50%,-50%);
+  transition:opacity .3s,width .3s var(--ease),height .3s var(--ease);mix-blend-mode:multiply;
+}
+.cursor-dot.big{width:34px;height:34px;opacity:.24;}
+@media (hover:none){.cursor-dot{display:none;}}
+
+/* ---------- 响应式 ---------- */
+
+@media (min-width:901px) and (max-height:760px){
+  .hero{padding-top:96px;padding-bottom:32px;min-height:auto;}
+  .chart-stage{max-width:min(420px,58vh);}
+  .chart-center-text{display:none;}
+  .scroll-hint{display:none;}
+}
+@media (max-width:900px){
+  .hero-inner{grid-template-columns:1fr;gap:40px;text-align:left;}
+  .chart-stage{max-width:min(400px,84vw);order:-1;}
+  .hero{min-height:auto;padding-top:110px;padding-bottom:40px;}
+  .lede{max-width:none;}
+  nav{display:none;}
+  .scroll-hint{display:none;}
+  .astro-card{display:none;}
+  .sec-head{flex-wrap:wrap;gap:8px 14px;}
+  .sec-head .en{margin-left:0;width:100%;}
+  .star-cell{padding:22px;}
+}
+
+/* 超窄屏 */
+@media (max-width:430px){
+  .hero-inner{grid-template-columns:1fr!important;}
+  .chart-stage{max-width:min(360px,88vw)!important;}
+  h1{font-size:clamp(38px,12vw,54px);}
+  .meta{gap:8px 16px;font-size:11px;}
+  .star-cell{padding:20px 18px;}
+  .star-cell .planet-name{font-size:17px;}
+  .essay-inner{padding:22px 18px;}
+  .essay p{font-size:13.6px;line-height:1.95;}
+  .work .lede-big{font-size:19px;}
+  footer{flex-direction:column;gap:8px;font-size:10px;}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important;}
+  html{scroll-behavior:auto;}
+  .reveal{opacity:1;transform:none;}
+}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="cursor-dot" id="cur"></div>
+<div class="wrap">
+<header>
+  <a class="brand" href="#top">占星师 <span>ALICE</span></a>
+  <nav>
+    <a href="#chart">星图</a>
+    <a href="#constellations">星座</a>
+    <a href="#work">工作</a>
+    <a href="#closing">留言</a>
+  </nav>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero" id="top">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow reveal">Astrologer · Content Producer · Shenzhen</div>
+      <h1 class="reveal">占星师<br><em>Alice</em></h1>
+      <div class="sub-en reveal">a reader of charts, a builder of stories</div>
+      <p class="lede reveal">
+        我在深圳，白天做 AI 内容，夜里看星图。<br>
+        <b>占星</b>是我看人的方式——先分得清哪些是天生，哪些是选出。<br>
+        <b>做内容</b>是我做事的方式——从一个念头，一路走到能被看见。
+      </p>
+      <div class="meta reveal">
+        <span><i>◈</i> 抖音：占星师 Alice</span>
+        <span><i>◈</i> 追光沐行 AI 内容工作室</span>
+        <span><i>◈</i> 6 年 AI 内容一线</span>
+      </div>
+    </div>
+
+    <div class="chart-stage reveal" id="chartStage">
+      <div class="halo" id="halo"></div>
+      <svg id="chart" viewBox="0 0 520 520" aria-label="可交互星盘，悬停星球查看详情">
+        <defs>
+          <radialGradient id="coreGrad"><stop offset="0%" stop-color="#f3e2bb"/><stop offset="70%" stop-color="#b98a3e"/><stop offset="100%" stop-color="#8a6326"/></radialGradient>
+          <radialGradient id="auraGrad"><stop offset="0%" stop-color="rgba(185,138,62,.55)"/><stop offset="100%" stop-color="rgba(185,138,62,0)"/></radialGradient>
+        </defs>
+        <g id="chartRings"></g>
+        <g id="chartAspects"></g>
+        <g id="chartZodiac"></g>
+        <g id="chartPlanets"></g>
+        <text class="chart-center-text" x="260" y="246">NATAL CHART</text>
+        <text class="chart-center-text" x="260" y="272" style="font-size:9.5px;letter-spacing:.2em;opacity:.7">HOVER A STAR</text>
+      </svg>
+    </div>
+  </div>
+  <div class="scroll-hint">SCROLL</div>
+</section>
+
+<!-- ================= 星座 ================= -->
+<section id="constellations">
+  <div class="inner">
+    <div class="sec-head reveal">
+      <span class="sec-num">01 / 06</span>
+      <h2>我的七个星座</h2>
+      <span class="en">seven fixed stars</span>
+    </div>
+    <div class="constellations" id="grid"></div>
+  </div>
+</section>
+
+<!-- ================= 追光沐行 ================= -->
+<section class="work" id="work">
+  <div class="inner">
+    <div class="sec-head reveal">
+      <span class="sec-num">02 / 06</span>
+      <h2>追光沐行</h2>
+      <span class="en">ai content studio</span>
+    </div>
+    <p class="lede-big reveal">
+      一家做 <em>AI 内容</em>的工作室。<br>
+      从一句需求，到能发出去的那一条视频、<br>
+      那一张图、那一篇文章。
+    </p>
+    <div class="capabilities reveal">
+      <div class="cap">
+        <div class="n">01</div>
+        <h4>AI 影视与短剧</h4>
+        <p>剧本、分镜、画面、配音、成片，一条线走完。</p>
+      </div>
+      <div class="cap">
+        <div class="n">02</div>
+        <h4>口播与数字人</h4>
+        <p>声音克隆、口型同步、多语言版本，按需交付。</p>
+      </div>
+      <div class="cap">
+        <div class="n">03</div>
+        <h4>电商视觉</h4>
+        <p>产品图、主图视频、模特换装，面向货架的那一层。</p>
+      </div>
+      <div class="cap">
+        <div class="n">04</div>
+        <h4>技术内容</h4>
+        <p>AI 技术干货写作，公众号日更的那条线。</p>
+      </div>
+    </div>
+    <div class="work-note reveal">※ 业务咨询请通过抖音私信。此处不列客户与合作明细。</div>
+  </div>
+</section>
+
+<!-- ================= 结语 ================= -->
+<section class="closing" id="closing">
+  <div class="inner">
+    <p class="quote reveal">
+      星图不给答案，<br>
+      它只告诉你<em>哪条路是天生</em>，<br>
+      哪条是<em>你自己走出来的</em>。
+    </p>
+    <div class="sign reveal">— 占星师 Alice · 于深圳</div>
+  </div>
+</section>
+
+<footer>
+  <div>© 2026 占星师 ALICE · 追光沐行 AI 内容工作室</div>
+  <div class="r">
+    <a href="#top">回到顶部 ↑</a>
+  </div>
+</footer>
+</div>
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------------- 数据：七颗星 ---------------- */
+  var STARS = [
+    { id:"sun", name:"太阳", key:"SUN · 身份", house:"第一宫 自我呈现",
+      short:"对外你是「占星师 Alice」；对内你知道自己是谁。两个名字，一个人。",
+      essay:["我给自己起了两个名字。一个用在营业执照上，一个用在星图边上。","很多人觉得这是两副面孔，其实不是。名字是给别人用的接口——「占星师 Alice」这四个字决定了我跟你说话时站在哪：站在星图那一侧，先看结构，再看细节。","我做的判断大多来自同一个地方：先分清哪部分是天生给的，哪部分是自己选的。这件事跟星盘有没有关系不重要，重要的是它让我在做决定时少慌一点。"] },
+
+    { id:"moon", name:"月亮", key:"MOON · 情绪与节奏", house:"第四宫 家与创作",
+      short:"白天跑生产线，夜里写故事。两种节奏，同一个人。",
+      essay:["白天我是另一个状态：看数据、改脚本、压交付时间、跟平台规则较劲。晚上写小说的时候，语速会慢下来，句子变长，允许自己绕远路。","这两种节奏我都需要。只跑生产线，人会干；只写故事，人会飘。","《遗憾当铺》那样的故事，是在夜里的那半个人写的。它讲中老年的妇人，讲没来得及的事——这跟星盘里最冷的那颗星有关系：人真正怕的不是失去，是还没来得及。"] },
+
+    { id:"mercury", name:"水星", key:"MERCURY · 表达", house:"第三宫 写作与传播",
+      short:"每天写，写到自己都嫌啰嗦，然后再删到不啰嗦。",
+      essay:["我手上有一件几乎每天都做的事：写 AI 技术的东西。不是为了流量，是因为写不清楚就等于没懂。","写久了会有一个副作用：开始受不了含糊的词。\"赋能\"\"闭环\"\"生态\"——这些词一出现，我就想问一句：具体是哪个动作。","所以我的文字偏好很朴素：先讲清楚，再讲好看。宁可句子长一点，也要让人真的看懂。"] },
+
+    { id:"venus", name:"金星", key:"VENUS · 审美", house:"第五宫 创造与品味",
+      short:"白色、留白、大字。少一点，但每一点都要立得住。",
+      essay:["我对界面的审美很单一：白底、留白、大字。深色复杂的东西会让我分心。","这不是冷淡，是我需要看得清。信息密度可以高，但层级必须干净——一眼知道先看哪里。","这颗星在我身上体现得最直接的地方，是封面和海报。一张图如果字不够大、不够清楚，我宁可重做，也不凑合发出去。"] },
+
+    { id:"mars", name:"火星", key:"MARS · 行动", house:"第六宫 日常与执行",
+      short:"自己搭一条生产线，比等别人给工具快。",
+      essay:["我有一套自己攒的 AI 生产线：本地跑模型、自己写调度、自己接音频和视频。听起来费劲，但每一次平台改规则、涨配额、关接口，我都不用等谁。","这是我做事最固执的一点：宁可自己搭，也不要把命门交给一个随时会跑路的东西。","代价是前期很累。好处是跑了半年之后，别人还在问\"哪个工具好用\"，我已经在改自己的流程了。"] },
+
+    { id:"jupiter", name:"木星", key:"JUPITER · 扩张", house:"第九宫 远方",
+      short:"不只服务一种客户：家纺、内容、技术，三条线并行。",
+      essay:["我做过的事比说过的多：家纺电商、AI 视频、技术写作、给不同的客户做视觉和内容。","这些事看起来不搭，其实共用一套能力：把一个模糊的需求，拆成能执行的动作，然后交付一个能被检验的东西。","木星管的是「往外长」。我不太擅长守着一件事做到极致，我更擅长把一件事的做法搬到下一个场景里。"] },
+
+    { id:"saturn", name:"土星", key:"SATURN · 边界", house:"第十宫 职业与名声",
+      short:"不编数据、不蹭背书、不做一次性的活。这条线不挪。",
+      essay:["有几件事我做不了：编客户名单、蹭没合作过的品牌、用假数据撑场面。","不是道德洁癖，是算过账的——一次性的活能骗过第一次，骗不过第二次；而我的生意全靠回头。","所以我对\"对外说什么\"很谨慎。价格、客户、业绩这种数字，别人说\"你看着办\"我也不会自己定：这些东西一旦写上去，就是承诺。"] }
+  ];
+
+  /* ---------------- 星空 canvas ---------------- */
+  var cv = document.getElementById("sky"), ctx = cv.getContext("2d");
+  var stars = [], W = 0, H = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var mouse = { x: -999, y: -999 };
+  function resize(){
+    W = cv.width = Math.floor(innerWidth * dpr);
+    H = cv.height = Math.floor(innerHeight * dpr);
+    cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px";
+    var n = Math.min(150, Math.floor(innerWidth * innerHeight / 12000));
+    stars = [];
+    for (var i = 0; i < n; i++){
+      stars.push({
+        x: Math.random() * W, y: Math.random() * H,
+        r: (Math.random() * 1.15 + .35) * dpr,
+        a: Math.random() * .5 + .16,
+        ph: Math.random() * Math.PI * 2,
+        sp: Math.random() * .9 + .25
+      });
+    }
+  }
+  resize();
+  addEventListener("resize", resize, { passive:true });
+
+  var t0 = performance.now();
+  function drawSky(now){
+    var t = (now - t0) / 1000;
+    ctx.clearRect(0, 0, W, H);
+    for (var i = 0; i < stars.length; i++){
+      var s = stars[i];
+      var tw = s.a * (0.62 + 0.38 * Math.sin(t * s.sp + s.ph));
+      var dx = s.x - mouse.x * dpr, dy = s.y - mouse.y * dpr;
+      var d2 = dx * dx + dy * dy;
+      var boost = d2 < 26000 ? (1 - d2 / 26000) * .7 : 0;
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(13,27,42," + Math.min(1, tw + boost) + ")";
+      ctx.arc(s.x, s.y, s.r * (1 + boost * .8), 0, 6.2832);
+      ctx.fill();
+    }
+    requestAnimationFrame(drawSky);
+  }
+  if (!reduce) requestAnimationFrame(drawSky);
+  else { /* 静态一层 */
+    for (var k = 0; k < stars.length; k++){
+      ctx.beginPath(); ctx.fillStyle = "rgba(13,27,42," + stars[k].a + ")";
+      ctx.arc(stars[k].x, stars[k].y, stars[k].r, 0, 6.2832); ctx.fill();
+    }
+  }
+
+  /* ---------------- 星盘绘制 ---------------- */
+  var CX = 260, CY = 260, R_OUT = 236, R_TICK = 214, R_ZOD = 196, R_IN = 168, R_HOUSE = 92;
+  var NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){
+    var e = document.createElementNS(NS, tag);
+    for (var a in attrs) e.setAttribute(a, attrs[a]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function pol(r, deg){ var rad = (deg - 90) * Math.PI / 180; return [CX + r * Math.cos(rad), CY + r * Math.sin(rad)]; }
+
+  var gRings = document.getElementById("chartRings");
+  var gAsp = document.getElementById("chartAspects");
+  var gZod = document.getElementById("chartZodiac");
+  var gPl = document.getElementById("chartPlanets");
+
+  [R_OUT, R_ZOD, R_IN, R_HOUSE].forEach(function(r){
+    el("circle", { cx:CX, cy:CY, r:r, class:"ring" + (r === R_OUT || r === R_IN ? " ring-major" : "") }, gRings);
+  });
+  // 360 刻度
+  for (var d = 0; d < 360; d += 2){
+    var major = d % 30 === 0;
+    var p1 = pol(major ? R_OUT : R_TICK, d), p2 = pol(R_OUT, d);
+    el("line", { x1:p1[0], y1:p1[1], x2:p2[0], y2:p2[1], class:"tick" + (major ? " tick-major" : "") }, gRings);
+  }
+  // 12 宫分割
+  for (var h = 0; h < 12; h++){
+    var a1 = pol(R_HOUSE, h * 30), a2 = pol(R_OUT, h * 30);
+    el("line", { x1:a1[0], y1:a1[1], x2:a2[0], y2:a2[1], class:"house-line" }, gRings);
+  }
+  // 星座符号（用极简中文短名，避免字体符号缺失）
+  var ZOD = ["羊","牛","双","蟹","狮","女","秤","蝎","手","羊","瓶","鱼"];
+  for (var z = 0; z < 12; z++){
+    var zp = pol(R_ZOD + 14, z * 30 + 15);
+    var tx = el("text", { x:zp[0], y:zp[1] + 4, class:"zodiac" }, gZod);
+    tx.textContent = ZOD[z];
+  }
+
+  // 星球方位（固定布局，视觉平衡优先，不是真实星历）
+  var POS = [72, 122, 168, 214, 268, 315, 352];
+  var ASPECTS = [[0,3],[0,4],[1,5],[2,4],[3,6],[0,2],[4,6]];
+  var nodes = [];
+
+  STARS.forEach(function(s, i){
+    var ang = POS[i];
+    var rad = R_HOUSE + 42 + (i % 2) * 18;
+    var p = pol(rad, ang);
+    var g = el("g", { class:"planet", "data-i":i, tabindex:"0", role:"button", "aria-label":s.name }, gPl);
+    el("circle", { cx:p[0], cy:p[1], r:20, fill:"url(#auraGrad)", class:"aura" }, g);
+    el("circle", { cx:p[0], cy:p[1], r:5.5, fill:"url(#coreGrad)", class:"core" }, g);
+    el("circle", { cx:p[0], cy:p[1], r:12, fill:"none", stroke:"rgba(185,138,62,.35)", "stroke-width":".6" }, g);
+    var lp = pol(rad + 34, ang);
+    var lt = el("text", { x:lp[0], y:lp[1] + 3.5, "text-anchor":"middle", "font-size":"9.5", "letter-spacing":".14em", fill:"#6b7684", "font-family":"var(--sans)" }, g);
+    lt.textContent = s.name;
+    nodes.push({ g:g, p:p });
+    el("line", { x1:CX, y1:CY, x2:p[0], y2:p[1], stroke:"rgba(13,27,42,.07)", "stroke-width":".7" }, gRings);
+  });
+
+  var aspLines = ASPECTS.map(function(pair){
+    var a = nodes[pair[0]].p, b = nodes[pair[1]].p;
+    return el("line", { x1:a[0], y1:a[1], x2:b[0], y2:b[1], class:"aspect" }, gAsp);
+  });
+
+  /* ---------------- 悬停卡 ---------------- */
+  var card = document.createElement("div");
+  card.className = "astro-card";
+  card.innerHTML = '<div class="k"></div><div class="len"></div><div class="rule"></div><p></p><div class="word"></div>';
+  document.body.appendChild(card);
+  var ck = card.querySelector(".k"), cl = card.querySelector(".len"), cp = card.querySelector("p"), cw = card.querySelector(".word");
+  var active = -1;
+
+  function showCard(i, x, y){
+    var s = STARS[i];
+    ck.textContent = s.name;
+    cl.textContent = s.key;
+    cp.textContent = s.short;
+    cw.textContent = s.house;
+    card.classList.add("show");
+    var vw = innerWidth, vh = innerHeight;
+    var w = Math.min(300, vw * .8), h = card.offsetHeight || 170;
+    var left = x + 20, top = y - h / 2;
+    if (left + w > vw - 16) left = x - w - 20;
+    top = Math.max(16, Math.min(top, vh - h - 16));
+    card.style.left = left + "px";
+    card.style.top = top + "px";
+  }
+  function hideCard(){ card.classList.remove("show"); }
+
+  function setActive(i){
+    active = i;
+    nodes.forEach(function(n, k){ n.g.classList.toggle("is-active", k === i); });
+    aspLines.forEach(function(l, k){
+      var on = ASPECTS[k].indexOf(i) > -1;
+      l.classList.toggle("on", on);
+      l.classList.toggle("dim", !on);
+    });
+  }
+  function clearActive(){
+    active = -1;
+    nodes.forEach(function(n){ n.g.classList.remove("is-active"); });
+    aspLines.forEach(function(l){ l.classList.remove("on", "dim"); });
+  }
+
+  nodes.forEach(function(n, i){
+    n.g.addEventListener("mouseenter", function(e){ setActive(i); showCard(i, e.clientX, e.clientY); });
+    n.g.addEventListener("mousemove", function(e){ if (active === i) showCard(i, e.clientX, e.clientY); });
+    n.g.addEventListener("mouseleave", function(){ clearActive(); hideCard(); });
+    n.g.addEventListener("focus", function(){
+      var r = n.g.getBoundingClientRect();
+      setActive(i); showCard(i, r.left + r.width, r.top + r.height / 2);
+    });
+    n.g.addEventListener("blur", function(){ clearActive(); hideCard(); });
+    n.g.addEventListener("click", function(){ openEssay(i); });
+    n.g.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); openEssay(i); } });
+  });
+
+  /* ---------------- 星座网格 ---------------- */
+  var grid = document.getElementById("grid");
+  var essayEl = document.createElement("div");
+  essayEl.className = "essay";
+  essayEl.innerHTML = '<div class="essay-inner"><h3></h3><div class="tag"></div><div class="body"></div><button class="close">收起 ↑</button></div>';
+
+  STARS.forEach(function(s, i){
+    var b = document.createElement("button");
+    b.className = "star-cell reveal";
+    b.setAttribute("data-i", i);
+    b.innerHTML = '<span class="dot"></span><div class="planet-name">' + s.name + '</div><div class="planet-key">' + s.key + '</div><p>' + s.short + '</p><span class="more">读下去 →</span>';
+    b.addEventListener("click", function(){ openEssay(i); });
+    grid.appendChild(b);
+  });
+  var sig = document.createElement("div");
+  sig.className = "star-cell is-signature reveal";
+  sig.innerHTML = '<div><span class="dot"></span><div class="planet-name">Alice</div><div class="planet-key">THE READER</div><p>七颗星是我的七个面。<br>真正的星盘，得当着你的面画。</p></div><div class="signature-mark">✦ 想聊聊，来抖音私信我</div>';
+  grid.appendChild(sig);
+  grid.appendChild(essayEl);
+
+  var eTitle = essayEl.querySelector("h3"), eTag = essayEl.querySelector(".tag"), eBody = essayEl.querySelector(".body");
+  function openEssay(i){
+    var s = STARS[i];
+    eTitle.textContent = s.name;
+    eTag.textContent = s.key + " · " + s.house;
+    eBody.innerHTML = s.essay.map(function(p){ return "<p>" + p + "</p>"; }).join("");
+    essayEl.classList.add("open");
+    setTimeout(function(){
+      essayEl.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block:"center" });
+    }, 60);
+    setActive(i);
+  }
+  essayEl.querySelector(".close").addEventListener("click", function(){
+    essayEl.classList.remove("open"); clearActive();
+  });
+
+  /* ---------------- 进场 ---------------- */
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if (en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); }
+    });
+  }, { threshold:.12, rootMargin:"0px 0px -8% 0px" });
+  var reveals = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+  reveals.forEach(function(n, i){
+    n.style.transitionDelay = (Math.min(i, 6) * 70) + "ms";
+    io.observe(n);
+  });
+  // 兜底：1.2s 后仍在视口外但已渲染的，直接显示，避免 IntersectionObserver 漏触发
+  setTimeout(function(){
+    reveals.forEach(function(n){
+      var r = n.getBoundingClientRect();
+      if (r.top < innerHeight * 3) n.classList.add("in");
+    });
+  }, 1200);
+
+  /* ---------------- 光标 & 视差 ---------------- */
+  var cur = document.getElementById("cur");
+  addEventListener("mousemove", function(e){
+    mouse.x = e.clientX; mouse.y = e.clientY;
+    cur.style.left = e.clientX + "px"; cur.style.top = e.clientY + "px";
+  }, { passive:true });
+  document.querySelectorAll("a, .star-cell, .planet, button").forEach(function(n){
+    n.addEventListener("mouseenter", function(){ cur.classList.add("big"); });
+    n.addEventListener("mouseleave", function(){ cur.classList.remove("big"); });
+  });
+
+  var stage = document.getElementById("chartStage");
+  if (!reduce && stage){
+    addEventListener("mousemove", function(e){
+      var cx = innerWidth / 2, cy = innerHeight / 2;
+      var rx = (e.clientX - cx) / cx, ry = (e.clientY - cy) / cy;
+      stage.style.transform = "perspective(900px) rotateY(" + (rx * 5) + "deg) rotateX(" + (-ry * 5) + "deg)";
+    }, { passive:true });
+  }
+})();
+</script>
+</body>
+</html>
